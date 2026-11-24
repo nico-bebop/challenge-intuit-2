@@ -20,7 +20,7 @@ public class AfiliadosController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        var afiliados = await _context.Afiliados.Where(a => a.isActive).ToListAsync();
+        var afiliados = await _context.Afiliados.Where(a => a.IsActive).ToListAsync();
         return Ok(afiliados);
     }
 
@@ -45,8 +45,8 @@ public class AfiliadosController : ControllerBase
             DNI = request.DNI.Trim(),
             Email = request.Email.Trim(),
             Telefono = request.Telefono.Trim(),
-            createdAt = DateTime.Now,
-            isActive = true
+            CreatedAt = DateTime.Now,
+            IsActive = true
         };
         _context.Afiliados.Add(afiliado);
         await _context.SaveChangesAsync();
@@ -78,7 +78,7 @@ public class AfiliadosController : ControllerBase
         if (afiliado == null) return NotFound();
 
         // Baja lógica: conserva el historial de consultas (antes quedaban huérfanas por SetNull).
-        afiliado.isActive = false;
+        afiliado.IsActive = false;
         await _context.SaveChangesAsync();
         return NoContent();
     }
