@@ -125,6 +125,16 @@ public class ConsultasController : ControllerBase
         var consulta = await _context.Consultas.FindAsync(id);
         if (consulta == null) return NotFound();
 
+        // Solo transiciones válidas: antes se podía reabrir una cancelada o pisar cualquier estado.
+        if (!EstadoConsultaTransiciones.Permitida(consulta.Estado, request.Estado))
+            return BadRequest(new { mensaje = $"Transición de estado no permitida: {consulta.Estado} → {request.Estado}." });
+
+        if (request.Estado == EstadoConsulta.Cancelado && consulta.FechaHora - DateTime.Now < TimeSpan.FromHours(24))
+            return BadRequest(new { mensaje = "No se puede cancelar con menos de 24 horas de anticipación." });
+
+        if (request.Estado is EstadoConsulta.Atendido or EstadoConsulta.Inasistencia && consulta.FechaHora > DateTime.Now)
+            return BadRequest(new { mensaje = "No se puede registrar atención/inasistencia sobre una consulta futura." });
+
         consulta.Estado = request.Estado;
         await _context.SaveChangesAsync();
         return Ok(consulta);
