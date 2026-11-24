@@ -90,6 +90,9 @@ public class ConsultasController : ControllerBase
         var consulta = await _context.Consultas.FindAsync(id);
         if (consulta == null) return NotFound();
 
+        if (consulta.Estado is not (EstadoConsulta.Pendiente or EstadoConsulta.Confirmado))
+            return BadRequest(new { mensaje = $"No se puede registrar una inasistencia sobre una consulta {consulta.Estado}." });
+
         if (consulta.FechaHora > DateTime.Now)
             return BadRequest(new { mensaje = "No se puede registrar una inasistencia sobre una consulta futura." });
 
@@ -104,8 +107,12 @@ public class ConsultasController : ControllerBase
         var consulta = await _context.Consultas.FindAsync(id);
         if (consulta == null) return NotFound();
 
-        if (!consulta.FechaHora.IsInCurrentYear())
-            return BadRequest(new { mensaje = "Solo se pueden registrar atenciones de consultas del año en curso." });
+        if (consulta.Estado is not (EstadoConsulta.Pendiente or EstadoConsulta.Confirmado))
+            return BadRequest(new { mensaje = $"No se puede registrar la atención de una consulta {consulta.Estado}." });
+
+        // Antes se validaba "año en curso": permitía atender consultas futuras y bloqueaba las del año anterior.
+        if (consulta.FechaHora > DateTime.Now)
+            return BadRequest(new { mensaje = "No se puede registrar la atención de una consulta futura." });
 
         consulta.Estado = EstadoConsulta.Atendido;
         await _context.SaveChangesAsync();
