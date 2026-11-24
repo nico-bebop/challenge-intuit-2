@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using ConsultasPlan.Data;
 using ConsultasPlan.Dtos;
 using ConsultasPlan.Models;
+using ConsultasPlan.Services;
 
 namespace ConsultasPlan.Controllers;
 
@@ -11,17 +12,26 @@ namespace ConsultasPlan.Controllers;
 public class AfiliadosController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private readonly CupoNutricionService _cupo;
 
-    public AfiliadosController(AppDbContext context)
+    public AfiliadosController(AppDbContext context, CupoNutricionService cupo)
     {
         _context = context;
+        _cupo = cupo;
     }
 
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
         var afiliados = await _context.Afiliados.Where(a => a.IsActive).ToListAsync();
-        return Ok(afiliados);
+        var usadas = await _cupo.UsadasPorAfiliadoAsync(DateTime.Now.Year);
+        return Ok(afiliados.Select(a => new
+        {
+            a.Id, a.NombreCompleto, a.DNI, a.Email, a.Telefono, a.Plan,
+            a.Bloqueado, a.FechaBloqueo, a.CreatedAt, a.IsActive,
+            consultasNutricionUsadas = usadas.GetValueOrDefault(a.Id),
+            consultasNutricionLimite = CupoNutricionService.LimiteAnual
+        }));
     }
 
     [HttpGet("{id}")]
@@ -30,6 +40,14 @@ public class AfiliadosController : ControllerBase
         var afiliado = await _context.Afiliados.FindAsync(id);
         if (afiliado == null) return NotFound();
         return Ok(afiliado);
+    }
+
+    [HttpGet("{id}/cupo-nutricion")]
+    public async Task<IActionResult> GetCupoNutricion(int id, [FromQuery] int? anio)
+    {
+        var afiliado = await _context.Afiliados.FindAsync(id);
+        if (afiliado == null) return NotFound();
+        return Ok(await _cupo.ObtenerAsync(id, anio ?? DateTime.Now.Year));
     }
 
     [HttpPost]
