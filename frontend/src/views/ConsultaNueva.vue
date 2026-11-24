@@ -41,7 +41,7 @@
 </template>
 
 <script>
-import { consultasApi, afiliadosApi, profesionalesApi } from '../services/api'
+import { consultasApi, afiliadosApi, profesionalesApi, mensajeError } from '../services/api'
 
 export default {
   name: 'ConsultaNueva',
@@ -63,8 +63,8 @@ export default {
       const [aRes, pRes] = await Promise.all([afiliadosApi.getAll(), profesionalesApi.getAll()])
       this.afiliados = aRes.data
       this.profesionales = pRes.data
-    } catch {
-      alert('Error al procesar la solicitud')
+    } catch (e) {
+      alert(mensajeError(e))
     }
   },
   methods: {
@@ -78,8 +78,8 @@ export default {
           motivo: this.form.motivo
         })
         this.$router.push('/consultas')
-      } catch {
-        alert('Error al procesar la solicitud')
+      } catch (e) {
+        alert(mensajeError(e))
       }
     }
   }

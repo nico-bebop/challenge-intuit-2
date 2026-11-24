@@ -23,7 +23,7 @@
           <td>{{ a.email }}</td>
           <td>{{ a.telefono }}</td>
           <td>{{ a.plan }}</td>
-          <td>{{ a.consultasUsadas }}</td>
+          <td>{{ a.consultasNutricionUsadas }} / {{ a.consultasNutricionLimite }}</td>
           <td>
             <span v-if="a.bloqueado" style="color: #d32f2f; font-weight: 600">Sí</span>
             <span v-else style="color: #388e3c">No</span>
@@ -39,7 +39,7 @@
 </template>
 
 <script>
-import { afiliadosApi } from '../services/api'
+import { afiliadosApi, mensajeError } from '../services/api'
 
 export default {
   name: 'AfiliadosList',
@@ -52,17 +52,18 @@ export default {
     try {
       const res = await afiliadosApi.getAll()
       this.afiliados = res.data
-    } catch {
-      alert('Error al procesar la solicitud')
+    } catch (e) {
+      alert(mensajeError(e))
     }
   },
   methods: {
     async eliminar(id) {
+      if (!confirm("¿Dar de baja al afiliado?")) return
       try {
         await afiliadosApi.delete(id)
         this.afiliados = this.afiliados.filter(a => a.id !== id)
-      } catch {
-        alert('Error al procesar la solicitud')
+      } catch (e) {
+        alert(mensajeError(e))
       }
     }
   }
