@@ -10,7 +10,7 @@
           <th>Email</th>
           <th>Teléfono</th>
           <th>Plan</th>
-          <th>Consultas usadas</th>
+          <th>Nutrición usadas</th>
           <th>Bloqueado</th>
           <th>Acciones</th>
         </tr>

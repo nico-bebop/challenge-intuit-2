@@ -42,7 +42,7 @@ public class ConsultasController : ControllerBase
     public async Task<IActionResult> CrearConsulta([FromBody] CrearConsultaRequest request)
     {
         var afiliado = request.AfiliadoId == null ? null : await _context.Afiliados.FindAsync(request.AfiliadoId);
-        if (afiliado == null || !afiliado.isActive)
+        if (afiliado == null || !afiliado.IsActive)
             return NotFound(new { mensaje = "Afiliado no encontrado." });
 
         if (afiliado.Bloqueado)

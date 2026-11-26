@@ -37,24 +37,24 @@ public static class DbSeeder
         var nutri1  = profesionales[3];
         var nutri2  = profesionales[4];
 
-        Afiliado A(string nombre, string dni, string email, string tel, int usadas, bool bloqueado, DateTime? fechaBloqueo, DateTime alta) =>
+        Afiliado A(string nombre, string dni, string email, string tel, bool bloqueado, DateTime? fechaBloqueo, DateTime alta) =>
             new Afiliado
             {
                 NombreCompleto = nombre, DNI = dni, Email = email, Telefono = tel, Plan = "Plan Integral",
-                ConsultasUsadas = usadas, Bloqueado = bloqueado, FechaBloqueo = fechaBloqueo,
-                createdAt = alta, isActive = true
+                Bloqueado = bloqueado, FechaBloqueo = fechaBloqueo,
+                CreatedAt = alta, IsActive = true
             };
 
         var afiliados = new[]
         {
-            A("Gonzalo Herrera",   "28445123", "gonzalo.herrera@gmail.com", "1145678901", 0, false, null, new DateTime(y - 1, 11, 4)),
-            A("Mariana López",     "31202456", "mariana.lopez@hotmail.com", "1167891234", 5, false, null, new DateTime(y - 1, 12, 14)),
-            A("Roberto Quintana",  "25789012", "roberto.q@gmail.com",       "1156789012", 6, false, null, new DateTime(y - 1, 12, 23)),
-            A("Sofía Vargas",      "35123789", "sofia.vargas@yahoo.com",    "1178901234", 1, false, null, new DateTime(y - 1, 12, 30)),
-            A("Diego Fernández",   "29876543", "diegofernandez@gmail.com",  "1134567890", 1, false, null, new DateTime(y - 1, 10, 25)),
-            A("Laura Giménez",     "33456789", "lauragimenez@gmail.com",    "1189012345", 0, false, null, new DateTime(y, 1, 4)),
-            A("Facundo Sosa",      "27345678", "facundo.sosa@outlook.com",  "1112345678", 0, true,  new DateTime(y, 4, 19), new DateTime(y - 1, 10, 27)),
-            A("Carolina Méndez",   "36901234", "carolina.mendez@gmail.com", "1190123456", 1, false, null, new DateTime(y - 2, 3, 14))
+            A("Gonzalo Herrera",   "28445123", "gonzalo.herrera@gmail.com", "1145678901", false, null, new DateTime(y - 1, 11, 4)),
+            A("Mariana López",     "31202456", "mariana.lopez@hotmail.com", "1167891234", false, null, new DateTime(y - 1, 12, 14)),
+            A("Roberto Quintana",  "25789012", "roberto.q@gmail.com",       "1156789012", false, null, new DateTime(y - 1, 12, 23)),
+            A("Sofía Vargas",      "35123789", "sofia.vargas@yahoo.com",    "1178901234", false, null, new DateTime(y - 1, 12, 30)),
+            A("Diego Fernández",   "29876543", "diegofernandez@gmail.com",  "1134567890", false, null, new DateTime(y - 1, 10, 25)),
+            A("Laura Giménez",     "33456789", "lauragimenez@gmail.com",    "1189012345", false, null, new DateTime(y, 1, 4)),
+            A("Facundo Sosa",      "27345678", "facundo.sosa@outlook.com",  "1112345678", true,  new DateTime(y, 4, 19), new DateTime(y - 1, 10, 27)),
+            A("Carolina Méndez",   "36901234", "carolina.mendez@gmail.com", "1190123456", false, null, new DateTime(y - 2, 3, 14))
         };
         db.Afiliados.AddRange(afiliados);
         db.SaveChanges();
