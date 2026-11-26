@@ -2,6 +2,8 @@ import axios from 'axios'
 
 const BASE_URL = 'http://localhost:5000'
 
+export const mensajeError = (e) => e?.response?.data?.mensaje || "Error al procesar la solicitud"
+
 export const consultasApi = {
   getAll:             ()          => axios.get(`${BASE_URL}/consultas`),
   getById:            (id)        => axios.get(`${BASE_URL}/consultas/${id}`),

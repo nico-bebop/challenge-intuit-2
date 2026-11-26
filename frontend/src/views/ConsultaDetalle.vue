@@ -33,7 +33,7 @@
 </template>
 
 <script>
-import { consultasApi } from '../services/api'
+import { consultasApi, mensajeError } from '../services/api'
 
 export default {
   name: 'ConsultaDetalle',
@@ -49,8 +49,8 @@ export default {
       const res = await consultasApi.getById(this.$route.params.id)
       this.consulta = res.data
       this.nuevoEstado = this.consulta.estado
-    } catch {
-      alert('Error al procesar la solicitud')
+    } catch (e) {
+      alert(mensajeError(e))
     }
   },
   methods: {
@@ -61,8 +61,8 @@ export default {
       try {
         const res = await consultasApi.actualizarEstado(this.consulta.id, { estado: this.nuevoEstado })
         this.consulta = res.data
-      } catch {
-        alert('Error al procesar la solicitud')
+      } catch (e) {
+        alert(mensajeError(e))
       }
     },
     async registrarAtencion() {
@@ -70,16 +70,21 @@ export default {
         const res = await consultasApi.registrarAtencion(this.consulta.id)
         this.consulta = res.data
         this.nuevoEstado = this.consulta.estado
-      } catch {
-        alert('Error al procesar la solicitud')
+      } catch (e) {
+        alert(mensajeError(e))
       }
     },
-    async cancelar() {
-      await consultasApi.cancelar(this.consulta.id)
+    async accion(fn) {
+      try {
+        const res = await fn(this.consulta.id)
+        this.consulta = { ...this.consulta, estado: res.data.estado }
+        this.nuevoEstado = this.consulta.estado
+      } catch (e) {
+        alert(mensajeError(e))
+      }
     },
-    async marcarInasistencia() {
-      await consultasApi.marcarInasistencia(this.consulta.id)
-    }
+    cancelar() { return this.accion(consultasApi.cancelar) },
+    marcarInasistencia() { return this.accion(consultasApi.marcarInasistencia) }
   }
 }
 </script>

@@ -29,7 +29,7 @@
           <td>{{ consulta.motivo }}</td>
           <td>
             <router-link :to="`/consultas/${consulta.id}`">Ver</router-link>
-            <button class="btn-danger" style="margin-left: 8px" @click="cancelar(consulta.id)">Cancelar</button>
+            <button v-if="['Pendiente', 'Confirmado'].includes(consulta.estado)" class="btn-danger" style="margin-left: 8px" @click="cancelar(consulta.id)">Cancelar</button>
           </td>
         </tr>
       </tbody>
@@ -39,7 +39,7 @@
 </template>
 
 <script>
-import { consultasApi } from '../services/api'
+import { consultasApi, mensajeError } from '../services/api'
 
 export default {
   name: 'ConsultasList',
@@ -52,8 +52,8 @@ export default {
     try {
       const res = await consultasApi.getAll()
       this.consultas = res.data
-    } catch {
-      alert('Error al procesar la solicitud')
+    } catch (e) {
+      alert(mensajeError(e))
     }
   },
   methods: {
@@ -61,7 +61,13 @@ export default {
       return new Date(fecha).toLocaleString('es-AR')
     },
     async cancelar(id) {
-      await consultasApi.cancelar(id)
+      try {
+        const res = await consultasApi.cancelar(id)
+        const i = this.consultas.findIndex(c => c.id === id)
+        if (i >= 0) this.consultas[i] = { ...this.consultas[i], estado: res.data.estado }
+      } catch (e) {
+        alert(mensajeError(e))
+      }
     }
   }
 }
