@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using ConsultasPlan.Data;
 using ConsultasPlan.Dtos;
 using ConsultasPlan.Models;
+using ConsultasPlan.Services;
 
 namespace ConsultasPlan.Controllers;
 
@@ -11,10 +12,12 @@ namespace ConsultasPlan.Controllers;
 public class ConsultasController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private readonly CupoNutricionService _cupo;
 
-    public ConsultasController(AppDbContext context)
+    public ConsultasController(AppDbContext context, CupoNutricionService cupo)
     {
         _context = context;
+        _cupo = cupo;
     }
 
     [HttpGet]
@@ -54,9 +57,13 @@ public class ConsultasController : ControllerBase
         if (!Enum.IsDefined(request.Modalidad))
             return BadRequest(new { mensaje = "Modalidad inválida." });
 
-        var profesionalExiste = await _context.Profesionales.AnyAsync(p => p.Id == request.ProfesionalId);
-        if (!profesionalExiste)
+        var profesional = await _context.Profesionales.FindAsync(request.ProfesionalId);
+        if (profesional == null)
             return NotFound(new { mensaje = "Profesional no encontrado." });
+
+        var errorCupo = await _cupo.ValidarAsync(afiliado.Id, profesional, request.Modalidad, request.FechaHora);
+        if (errorCupo != null)
+            return BadRequest(new { mensaje = errorCupo });
 
         var consultaConflicto = await _context.Consultas.AnyAsync(c =>
             c.ProfesionalId == request.ProfesionalId &&
