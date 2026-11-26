@@ -27,10 +27,10 @@
             <span :class="['badge', `badge-${consulta.estado?.toLowerCase()}`]">{{ consulta.estado }}</span>
           </td>
           <td>{{ consulta.motivo }}</td>
-          <td>
+          <td><div style="display: flex; gap: 8px; align-items: center">
             <router-link class="btn-link" :to="`/consultas/${consulta.id}`">Ver</router-link>
-            <button v-if="['Pendiente', 'Confirmado'].includes(consulta.estado)" class="btn-danger" style="margin-left: 8px" @click="cancelar(consulta.id)">Cancelar</button>
-          </td>
+            <button v-if="['Pendiente', 'Confirmado'].includes(consulta.estado)" class="btn-danger" @click="cancelar(consulta.id)">Cancelar</button>
+          </div></td>
         </tr>
       </tbody>
     </table>
