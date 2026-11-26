@@ -20,7 +20,7 @@ public class AfiliadosController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        var afiliados = await _context.Afiliados.ToListAsync();
+        var afiliados = await _context.Afiliados.Where(a => a.isActive).ToListAsync();
         return Ok(afiliados);
     }
 
@@ -77,7 +77,8 @@ public class AfiliadosController : ControllerBase
         var afiliado = await _context.Afiliados.FindAsync(id);
         if (afiliado == null) return NotFound();
 
-        _context.Afiliados.Remove(afiliado);
+        // Baja lógica: conserva el historial de consultas (antes quedaban huérfanas por SetNull).
+        afiliado.isActive = false;
         await _context.SaveChangesAsync();
         return NoContent();
     }
