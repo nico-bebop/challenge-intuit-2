@@ -4,7 +4,7 @@ using ConsultasPlan.Data;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite("Data Source=consultas.db"));
+    options.UseSqlite(builder.Configuration.GetConnectionString("Default") ?? "Data Source=consultas.db"));
 
 builder.Services.AddControllers().AddJsonOptions(options =>
 {

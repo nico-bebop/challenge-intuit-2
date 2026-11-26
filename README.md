@@ -43,3 +43,19 @@ El cliente levanta en **http://localhost:5173**.
 ├── backend/     # API REST (.NET 8 · EF Core · SQLite)
 └── frontend/    # SPA (Vue 3 · Vite)
 ```
+
+---
+
+## Con Docker (alternativa)
+
+```bash
+docker compose up --build
+```
+
+Frontend en **http://localhost:5173**, backend/Swagger en **http://localhost:5000/swagger**. La base SQLite persiste en el volumen `consultas-data` (`docker compose down -v` para reiniciarla).
+
+## Reglas de negocio configurables
+
+`backend/appsettings.json` → sección `BusinessRules`: `CancellationWindowHours` (24), `NutricionAnnualLimit` (6), `NutricionMonthlyLimit` (1).
+
+> Si ya tenías un `consultas.db` de una versión anterior, borralo: el esquema cambió y se usa `EnsureCreated`.
