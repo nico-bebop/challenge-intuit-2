@@ -1,10 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 using ConsultasPlan.Data;
 using ConsultasPlan.Models;
+using ConsultasPlan.Settings;
+using Microsoft.Extensions.Options;
 
 namespace ConsultasPlan.Services;
 
-public record CupoNutricion(int Anio, int Limite, int Usadas, int Disponibles, IReadOnlyList<int> MesesUsados);
+public record CupoNutricion(int Anio, int Limite, int Usadas, int Disponibles, IReadOnlyDictionary<int, int> UsadasPorMes);
 
 /// <summary>
 /// Política de cupo: 6 consultas presenciales de nutrición por año calendario, máximo 1 por mes.
@@ -14,9 +16,6 @@ public record CupoNutricion(int Anio, int Limite, int Usadas, int Disponibles, I
 public class CupoNutricionService
 {
     public const string Especialidad = "Nutrición";
-    public const int LimiteAnual = 6;
-    public const int LimiteMensual = 1;
-
     // Una consulta cancelada libera el cupo; una inasistencia lo consume.
     private static readonly EstadoConsulta[] EstadosQueConsumen =
     {
@@ -26,7 +25,16 @@ public class CupoNutricionService
 
     private readonly AppDbContext _context;
 
-    public CupoNutricionService(AppDbContext context) => _context = context;
+    private readonly BusinessRulesSettings _rules;
+
+    public CupoNutricionService(AppDbContext context, IOptions<BusinessRulesSettings> rules)
+    {
+        _context = context;
+        _rules = rules.Value;
+    }
+
+    public int LimiteAnual => _rules.NutricionAnnualLimit;
+    public int LimiteMensual => _rules.NutricionMonthlyLimit;
 
     private IQueryable<Consulta> Consumidas(int anio)
     {
@@ -43,8 +51,8 @@ public class CupoNutricionService
     {
         var fechas = await Consumidas(anio).Where(c => c.AfiliadoId == afiliadoId)
             .Select(c => c.FechaHora).ToListAsync();
-        var meses = fechas.Select(f => f.Month).Distinct().OrderBy(m => m).ToList();
-        return new CupoNutricion(anio, LimiteAnual, fechas.Count, Math.Max(0, LimiteAnual - fechas.Count), meses);
+        var porMes = fechas.GroupBy(f => f.Month).ToDictionary(g => g.Key, g => g.Count());
+        return new CupoNutricion(anio, LimiteAnual, fechas.Count, Math.Max(0, LimiteAnual - fechas.Count), porMes);
     }
 
     public async Task<Dictionary<int, int>> UsadasPorAfiliadoAsync(int anio) =>
@@ -62,7 +70,7 @@ public class CupoNutricionService
         var cupo = await ObtenerAsync(afiliadoId, fecha.Year);
         if (cupo.Usadas >= LimiteAnual)
             return $"El afiliado alcanzó el cupo de {LimiteAnual} consultas presenciales de nutrición para {fecha.Year}.";
-        if (cupo.MesesUsados.Contains(fecha.Month))
+        if (cupo.UsadasPorMes.GetValueOrDefault(fecha.Month) >= LimiteMensual)
             return $"El afiliado ya tiene una consulta presencial de nutrición en {fecha:MM/yyyy}; el máximo es {LimiteMensual} por mes.";
         return null;
     }

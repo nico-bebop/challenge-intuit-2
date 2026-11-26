@@ -30,7 +30,7 @@ public class AfiliadosController : ControllerBase
             a.Id, a.NombreCompleto, a.DNI, a.Email, a.Telefono, a.Plan,
             a.Bloqueado, a.FechaBloqueo, a.CreatedAt, a.IsActive,
             consultasNutricionUsadas = usadas.GetValueOrDefault(a.Id),
-            consultasNutricionLimite = CupoNutricionService.LimiteAnual
+            consultasNutricionLimite = _cupo.LimiteAnual
         }));
     }
 

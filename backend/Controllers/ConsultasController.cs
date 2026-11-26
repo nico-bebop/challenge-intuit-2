@@ -4,6 +4,8 @@ using ConsultasPlan.Data;
 using ConsultasPlan.Dtos;
 using ConsultasPlan.Models;
 using ConsultasPlan.Services;
+using ConsultasPlan.Settings;
+using Microsoft.Extensions.Options;
 
 namespace ConsultasPlan.Controllers;
 
@@ -13,11 +15,13 @@ public class ConsultasController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly CupoNutricionService _cupo;
+    private readonly BusinessRulesSettings _rules;
 
-    public ConsultasController(AppDbContext context, CupoNutricionService cupo)
+    public ConsultasController(AppDbContext context, CupoNutricionService cupo, IOptions<BusinessRulesSettings> rules)
     {
         _context = context;
         _cupo = cupo;
+        _rules = rules.Value;
     }
 
     [HttpGet]
@@ -98,8 +102,8 @@ public class ConsultasController : ControllerBase
             return BadRequest(new { mensaje = $"No se puede cancelar una consulta en estado {consulta.Estado}." });
 
         // Antes se comparaba contra 23h mientras el mensaje decía 24h.
-        if (consulta.FechaHora - DateTime.Now < TimeSpan.FromHours(24))
-            return BadRequest(new { mensaje = "No se puede cancelar con menos de 24 horas de anticipación." });
+        if (consulta.FechaHora - DateTime.Now < TimeSpan.FromHours(_rules.CancellationWindowHours))
+            return BadRequest(new { mensaje = $"No se puede cancelar con menos de {_rules.CancellationWindowHours} horas de anticipación." });
 
         consulta.Estado = EstadoConsulta.Cancelado;
         await _context.SaveChangesAsync();
@@ -151,8 +155,8 @@ public class ConsultasController : ControllerBase
         if (!EstadoConsultaTransiciones.Permitida(consulta.Estado, request.Estado))
             return BadRequest(new { mensaje = $"Transición de estado no permitida: {consulta.Estado} → {request.Estado}." });
 
-        if (request.Estado == EstadoConsulta.Cancelado && consulta.FechaHora - DateTime.Now < TimeSpan.FromHours(24))
-            return BadRequest(new { mensaje = "No se puede cancelar con menos de 24 horas de anticipación." });
+        if (request.Estado == EstadoConsulta.Cancelado && consulta.FechaHora - DateTime.Now < TimeSpan.FromHours(_rules.CancellationWindowHours))
+            return BadRequest(new { mensaje = $"No se puede cancelar con menos de {_rules.CancellationWindowHours} horas de anticipación." });
 
         if (request.Estado is EstadoConsulta.Atendido or EstadoConsulta.Inasistencia && consulta.FechaHora > DateTime.Now)
             return BadRequest(new { mensaje = "No se puede registrar atención/inasistencia sobre una consulta futura." });
