@@ -27,6 +27,8 @@ builder.Services.AddCors(options =>
     });
 });
 
+builder.Services.Configure<ConsultasPlan.Settings.BusinessRulesSettings>(
+    builder.Configuration.GetSection(ConsultasPlan.Settings.BusinessRulesSettings.SectionName));
 builder.Services.AddScoped<ConsultasPlan.Services.CupoNutricionService>();
 
 var app = builder.Build();
