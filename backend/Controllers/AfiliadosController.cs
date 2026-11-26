@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ConsultasPlan.Data;
 using ConsultasPlan.Dtos;
+using ConsultasPlan.Exceptions;
 using ConsultasPlan.Models;
 using ConsultasPlan.Services;
 
@@ -35,26 +36,19 @@ public class AfiliadosController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    public async Task<IActionResult> GetById(int id)
-    {
-        var afiliado = await _context.Afiliados.FindAsync(id);
-        if (afiliado == null) return NotFound();
-        return Ok(afiliado);
-    }
+    public async Task<IActionResult> GetById(int id) => Ok(await Obtener(id));
 
     [HttpGet("{id}/cupo-nutricion")]
     public async Task<IActionResult> GetCupoNutricion(int id, [FromQuery] int? anio)
     {
-        var afiliado = await _context.Afiliados.FindAsync(id);
-        if (afiliado == null) return NotFound();
+        await Obtener(id);
         return Ok(await _cupo.ObtenerAsync(id, anio ?? DateTime.Now.Year));
     }
 
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] AfiliadoRequest request)
     {
-        var error = await Validar(request, null);
-        if (error != null) return error;
+        await Validar(request, null);
 
         // Solo se copian los campos editables: el cliente no puede fijar Bloqueado, Plan, etc.
         var afiliado = new Afiliado
@@ -74,11 +68,8 @@ public class AfiliadosController : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, [FromBody] AfiliadoRequest request)
     {
-        var existing = await _context.Afiliados.FindAsync(id);
-        if (existing == null) return NotFound();
-
-        var error = await Validar(request, id);
-        if (error != null) return error;
+        var existing = await Obtener(id);
+        await Validar(request, id);
 
         existing.NombreCompleto = request.NombreCompleto.Trim();
         existing.DNI = request.DNI.Trim();
@@ -92,23 +83,23 @@ public class AfiliadosController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {
-        var afiliado = await _context.Afiliados.FindAsync(id);
-        if (afiliado == null) return NotFound();
-
+        var afiliado = await Obtener(id);
         // Baja lógica: conserva el historial de consultas (antes quedaban huérfanas por SetNull).
         afiliado.IsActive = false;
         await _context.SaveChangesAsync();
         return NoContent();
     }
 
-    private async Task<IActionResult?> Validar(AfiliadoRequest r, int? idActual)
+    private async Task<Afiliado> Obtener(int id) =>
+        await _context.Afiliados.FindAsync(id) ?? throw new NotFoundException("Afiliado no encontrado.");
+
+    private async Task Validar(AfiliadoRequest r, int? idActual)
     {
         if (string.IsNullOrWhiteSpace(r.NombreCompleto) || string.IsNullOrWhiteSpace(r.DNI))
-            return BadRequest(new { mensaje = "Nombre y DNI son obligatorios." });
+            throw new BusinessException("Nombre y DNI son obligatorios.");
 
         var dni = r.DNI.Trim();
         if (await _context.Afiliados.AnyAsync(a => a.DNI == dni && a.Id != idActual))
-            return Conflict(new { mensaje = "Ya existe un afiliado con ese DNI." });
-        return null;
+            throw new ConflictException("Ya existe un afiliado con ese DNI.");
     }
 }

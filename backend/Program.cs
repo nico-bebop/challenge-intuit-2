@@ -33,6 +33,8 @@ builder.Services.AddScoped<ConsultasPlan.Services.CupoNutricionService>();
 
 var app = builder.Build();
 
+app.UseMiddleware<ConsultasPlan.Middleware.ExceptionHandlingMiddleware>();
+
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();

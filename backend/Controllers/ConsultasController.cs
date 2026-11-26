@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ConsultasPlan.Data;
 using ConsultasPlan.Dtos;
+using ConsultasPlan.Exceptions;
 using ConsultasPlan.Models;
 using ConsultasPlan.Services;
 using ConsultasPlan.Settings;
@@ -41,8 +42,7 @@ public class ConsultasController : ControllerBase
             .Include(c => c.Afiliado)
             .Include(c => c.Profesional)
             .FirstOrDefaultAsync(c => c.Id == id);
-        if (consulta == null) return NotFound();
-        return Ok(consulta);
+        return Ok(consulta ?? throw new NotFoundException("Consulta no encontrada."));
     }
 
     [HttpPost]
@@ -50,31 +50,28 @@ public class ConsultasController : ControllerBase
     {
         var afiliado = request.AfiliadoId == null ? null : await _context.Afiliados.FindAsync(request.AfiliadoId);
         if (afiliado == null || !afiliado.IsActive)
-            return NotFound(new { mensaje = "Afiliado no encontrado." });
+            throw new NotFoundException("Afiliado no encontrado.");
 
         if (afiliado.Bloqueado)
-            return BadRequest(new { mensaje = "El afiliado se encuentra bloqueado para agendar consultas." });
+            throw new BusinessException("El afiliado se encuentra bloqueado para agendar consultas.");
 
         if (request.FechaHora <= DateTime.Now)
-            return BadRequest(new { mensaje = "La fecha de la consulta debe ser futura." });
+            throw new BusinessException("La fecha de la consulta debe ser futura.");
 
         if (!Enum.IsDefined(request.Modalidad))
-            return BadRequest(new { mensaje = "Modalidad inválida." });
+            throw new BusinessException("Modalidad inválida.");
 
-        var profesional = await _context.Profesionales.FindAsync(request.ProfesionalId);
-        if (profesional == null)
-            return NotFound(new { mensaje = "Profesional no encontrado." });
+        var profesional = await _context.Profesionales.FindAsync(request.ProfesionalId)
+            ?? throw new NotFoundException("Profesional no encontrado.");
 
-        var errorCupo = await _cupo.ValidarAsync(afiliado.Id, profesional, request.Modalidad, request.FechaHora);
-        if (errorCupo != null)
-            return BadRequest(new { mensaje = errorCupo });
+        await _cupo.ValidarAsync(afiliado.Id, profesional, request.Modalidad, request.FechaHora);
 
         var consultaConflicto = await _context.Consultas.AnyAsync(c =>
             c.ProfesionalId == request.ProfesionalId &&
             c.FechaHora == request.FechaHora &&
             c.Estado != EstadoConsulta.Cancelado);
         if (consultaConflicto)
-            return BadRequest(new { mensaje = "El profesional ya tiene una consulta en ese horario." });
+            throw new BusinessException("El profesional ya tiene una consulta en ese horario.");
 
         var consulta = new Consulta
         {
@@ -93,75 +90,36 @@ public class ConsultasController : ControllerBase
 
     // POST (antes GET): una operación que modifica estado no debe ser "safe"/cacheable/prefetcheable.
     [HttpPost("{id}/cancelar")]
-    public async Task<IActionResult> CancelarConsulta(int id)
-    {
-        var consulta = await _context.Consultas.FindAsync(id);
-        if (consulta == null) return NotFound();
-
-        if (consulta.Estado is not (EstadoConsulta.Pendiente or EstadoConsulta.Confirmado))
-            return BadRequest(new { mensaje = $"No se puede cancelar una consulta en estado {consulta.Estado}." });
-
-        // Antes se comparaba contra 23h mientras el mensaje decía 24h.
-        if (consulta.FechaHora - DateTime.Now < TimeSpan.FromHours(_rules.CancellationWindowHours))
-            return BadRequest(new { mensaje = $"No se puede cancelar con menos de {_rules.CancellationWindowHours} horas de anticipación." });
-
-        consulta.Estado = EstadoConsulta.Cancelado;
-        await _context.SaveChangesAsync();
-        return Ok(consulta);
-    }
+    public async Task<IActionResult> CancelarConsulta(int id) => await CambiarEstado(id, EstadoConsulta.Cancelado);
 
     [HttpPost("{id}/inasistencia")]
-    public async Task<IActionResult> MarcarInasistencia(int id)
-    {
-        var consulta = await _context.Consultas.FindAsync(id);
-        if (consulta == null) return NotFound();
-
-        if (consulta.Estado is not (EstadoConsulta.Pendiente or EstadoConsulta.Confirmado))
-            return BadRequest(new { mensaje = $"No se puede registrar una inasistencia sobre una consulta {consulta.Estado}." });
-
-        if (consulta.FechaHora > DateTime.Now)
-            return BadRequest(new { mensaje = "No se puede registrar una inasistencia sobre una consulta futura." });
-
-        consulta.Estado = EstadoConsulta.Inasistencia;
-        await _context.SaveChangesAsync();
-        return Ok(consulta);
-    }
+    public async Task<IActionResult> MarcarInasistencia(int id) => await CambiarEstado(id, EstadoConsulta.Inasistencia);
 
     [HttpPost("{id}/atencion")]
-    public async Task<IActionResult> RegistrarAtencion(int id)
-    {
-        var consulta = await _context.Consultas.FindAsync(id);
-        if (consulta == null) return NotFound();
-
-        if (consulta.Estado is not (EstadoConsulta.Pendiente or EstadoConsulta.Confirmado))
-            return BadRequest(new { mensaje = $"No se puede registrar la atención de una consulta {consulta.Estado}." });
-
-        // Antes se validaba "año en curso": permitía atender consultas futuras y bloqueaba las del año anterior.
-        if (consulta.FechaHora > DateTime.Now)
-            return BadRequest(new { mensaje = "No se puede registrar la atención de una consulta futura." });
-
-        consulta.Estado = EstadoConsulta.Atendido;
-        await _context.SaveChangesAsync();
-        return Ok(consulta);
-    }
+    public async Task<IActionResult> RegistrarAtencion(int id) => await CambiarEstado(id, EstadoConsulta.Atendido);
 
     [HttpPut("{id}/estado")]
-    public async Task<IActionResult> ActualizarEstado(int id, [FromBody] ActualizarEstadoRequest request)
+    public async Task<IActionResult> ActualizarEstado(int id, [FromBody] ActualizarEstadoRequest request) =>
+        await CambiarEstado(id, request.Estado);
+
+    // Único punto de entrada para cambios de estado: ninguna vía puede saltear las reglas.
+    private async Task<IActionResult> CambiarEstado(int id, EstadoConsulta nuevo)
     {
-        var consulta = await _context.Consultas.FindAsync(id);
-        if (consulta == null) return NotFound();
+        var consulta = await _context.Consultas.FindAsync(id)
+            ?? throw new NotFoundException("Consulta no encontrada.");
 
-        // Solo transiciones válidas: antes se podía reabrir una cancelada o pisar cualquier estado.
-        if (!EstadoConsultaTransiciones.Permitida(consulta.Estado, request.Estado))
-            return BadRequest(new { mensaje = $"Transición de estado no permitida: {consulta.Estado} → {request.Estado}." });
+        if (!EstadoConsultaTransiciones.Permitida(consulta.Estado, nuevo))
+            throw new BusinessException($"Transición de estado no permitida: {consulta.Estado} → {nuevo}.");
 
-        if (request.Estado == EstadoConsulta.Cancelado && consulta.FechaHora - DateTime.Now < TimeSpan.FromHours(_rules.CancellationWindowHours))
-            return BadRequest(new { mensaje = $"No se puede cancelar con menos de {_rules.CancellationWindowHours} horas de anticipación." });
+        if (nuevo == EstadoConsulta.Cancelado &&
+            consulta.FechaHora - DateTime.Now < TimeSpan.FromHours(_rules.CancellationWindowHours))
+            throw new BusinessException($"No se puede cancelar con menos de {_rules.CancellationWindowHours} horas de anticipación.");
 
-        if (request.Estado is EstadoConsulta.Atendido or EstadoConsulta.Inasistencia && consulta.FechaHora > DateTime.Now)
-            return BadRequest(new { mensaje = "No se puede registrar atención/inasistencia sobre una consulta futura." });
+        // Antes RegistrarAtencion validaba "año en curso", lo que permitía atender consultas futuras.
+        if (nuevo is EstadoConsulta.Atendido or EstadoConsulta.Inasistencia && consulta.FechaHora > DateTime.Now)
+            throw new BusinessException("No se puede registrar atención o inasistencia sobre una consulta futura.");
 
-        consulta.Estado = request.Estado;
+        consulta.Estado = nuevo;
         await _context.SaveChangesAsync();
         return Ok(consulta);
     }
