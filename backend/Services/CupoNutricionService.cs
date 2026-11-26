@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using ConsultasPlan.Data;
+using ConsultasPlan.Exceptions;
 using ConsultasPlan.Models;
 using ConsultasPlan.Settings;
 using Microsoft.Extensions.Options;
@@ -61,17 +62,16 @@ public class CupoNutricionService
             .Select(g => new { g.Key, N = g.Count() }).ToListAsync())
         .ToDictionary(x => x.Key, x => x.N);
 
-    /// <summary>Devuelve el mensaje de error si agendar la consulta viola el cupo; null si es válida o no aplica.</summary>
-    public async Task<string?> ValidarAsync(int afiliadoId, Profesional profesional, ModalidadConsulta modalidad, DateTime fecha)
+    /// <summary>Lanza BusinessException si agendar la consulta viola el cupo; no hace nada si es válida o no aplica.</summary>
+    public async Task ValidarAsync(int afiliadoId, Profesional profesional, ModalidadConsulta modalidad, DateTime fecha)
     {
         if (profesional.Especialidad != Especialidad || modalidad != ModalidadConsulta.Presencial)
-            return null;
+            return;
 
         var cupo = await ObtenerAsync(afiliadoId, fecha.Year);
         if (cupo.Usadas >= LimiteAnual)
-            return $"El afiliado alcanzó el cupo de {LimiteAnual} consultas presenciales de nutrición para {fecha.Year}.";
+            throw new BusinessException($"El afiliado alcanzó el cupo de {LimiteAnual} consultas presenciales de nutrición para {fecha.Year}.");
         if (cupo.UsadasPorMes.GetValueOrDefault(fecha.Month) >= LimiteMensual)
-            return $"El afiliado ya tiene una consulta presencial de nutrición en {fecha:MM/yyyy}; el máximo es {LimiteMensual} por mes.";
-        return null;
+            throw new BusinessException($"El afiliado ya tiene una consulta presencial de nutrición en {fecha:MM/yyyy}; el máximo es {LimiteMensual} por mes.");
     }
 }
