@@ -107,7 +107,11 @@ public class ConsultasController : ControllerBase
 
     private async Task<IActionResult> Modificar(int id, Action<Consulta> accion)
     {
-        var consulta = await _context.Consultas.FindAsync(id)
+        // Se incluyen Afiliado y Profesional: el frontend reemplaza la consulta con esta respuesta.
+        var consulta = await _context.Consultas
+            .Include(c => c.Afiliado)
+            .Include(c => c.Profesional)
+            .FirstOrDefaultAsync(c => c.Id == id)
             ?? throw new NotFoundException("Consulta no encontrada.");
         accion(consulta);
         await _context.SaveChangesAsync();

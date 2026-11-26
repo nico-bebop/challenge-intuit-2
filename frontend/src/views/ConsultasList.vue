@@ -28,7 +28,7 @@
           </td>
           <td>{{ consulta.motivo }}</td>
           <td>
-            <router-link :to="`/consultas/${consulta.id}`">Ver</router-link>
+            <router-link class="btn-link" :to="`/consultas/${consulta.id}`">Ver</router-link>
             <button v-if="['Pendiente', 'Confirmado'].includes(consulta.estado)" class="btn-danger" style="margin-left: 8px" @click="cancelar(consulta.id)">Cancelar</button>
           </td>
         </tr>

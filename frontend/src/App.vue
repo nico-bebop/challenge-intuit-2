@@ -83,6 +83,16 @@ button {
   color: #fff;
 }
 button:hover { background: #1558b0; }
+.btn-link {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-size: 13px;
+  background: #1a73e8;
+  color: #fff;
+  text-decoration: none;
+}
+.btn-link:hover { background: #1558b0; }
 .btn-danger { background: #d32f2f; }
 .btn-danger:hover { background: #b71c1c; }
 .form-group {
