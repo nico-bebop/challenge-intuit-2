@@ -60,7 +60,7 @@ export default {
     async cambiarEstado() {
       try {
         const res = await consultasApi.actualizarEstado(this.consulta.id, { estado: this.nuevoEstado })
-        this.consulta = res.data
+        this.consulta = { ...this.consulta, ...res.data }
       } catch {
         // El interceptor de axios ya informó el error
       }
@@ -68,7 +68,7 @@ export default {
     async registrarAtencion() {
       try {
         const res = await consultasApi.registrarAtencion(this.consulta.id)
-        this.consulta = res.data
+        this.consulta = { ...this.consulta, ...res.data }
         this.nuevoEstado = this.consulta.estado
       } catch {
         // El interceptor de axios ya informó el error
