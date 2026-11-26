@@ -90,36 +90,26 @@ public class ConsultasController : ControllerBase
 
     // POST (antes GET): una operación que modifica estado no debe ser "safe"/cacheable/prefetcheable.
     [HttpPost("{id}/cancelar")]
-    public async Task<IActionResult> CancelarConsulta(int id) => await CambiarEstado(id, EstadoConsulta.Cancelado);
+    public async Task<IActionResult> CancelarConsulta(int id) =>
+        await Modificar(id, c => c.Cancelar(DateTime.Now, _rules.CancellationWindowHours));
 
     [HttpPost("{id}/inasistencia")]
-    public async Task<IActionResult> MarcarInasistencia(int id) => await CambiarEstado(id, EstadoConsulta.Inasistencia);
+    public async Task<IActionResult> MarcarInasistencia(int id) =>
+        await Modificar(id, c => c.MarcarInasistencia(DateTime.Now));
 
     [HttpPost("{id}/atencion")]
-    public async Task<IActionResult> RegistrarAtencion(int id) => await CambiarEstado(id, EstadoConsulta.Atendido);
+    public async Task<IActionResult> RegistrarAtencion(int id) =>
+        await Modificar(id, c => c.RegistrarAtencion(DateTime.Now));
 
     [HttpPut("{id}/estado")]
     public async Task<IActionResult> ActualizarEstado(int id, [FromBody] ActualizarEstadoRequest request) =>
-        await CambiarEstado(id, request.Estado);
+        await Modificar(id, c => c.CambiarEstado(request.Estado, DateTime.Now, _rules.CancellationWindowHours));
 
-    // Único punto de entrada para cambios de estado: ninguna vía puede saltear las reglas.
-    private async Task<IActionResult> CambiarEstado(int id, EstadoConsulta nuevo)
+    private async Task<IActionResult> Modificar(int id, Action<Consulta> accion)
     {
         var consulta = await _context.Consultas.FindAsync(id)
             ?? throw new NotFoundException("Consulta no encontrada.");
-
-        if (!EstadoConsultaTransiciones.Permitida(consulta.Estado, nuevo))
-            throw new BusinessException($"Transición de estado no permitida: {consulta.Estado} → {nuevo}.");
-
-        if (nuevo == EstadoConsulta.Cancelado &&
-            consulta.FechaHora - DateTime.Now < TimeSpan.FromHours(_rules.CancellationWindowHours))
-            throw new BusinessException($"No se puede cancelar con menos de {_rules.CancellationWindowHours} horas de anticipación.");
-
-        // Antes RegistrarAtencion validaba "año en curso", lo que permitía atender consultas futuras.
-        if (nuevo is EstadoConsulta.Atendido or EstadoConsulta.Inasistencia && consulta.FechaHora > DateTime.Now)
-            throw new BusinessException("No se puede registrar atención o inasistencia sobre una consulta futura.");
-
-        consulta.Estado = nuevo;
+        accion(consulta);
         await _context.SaveChangesAsync();
         return Ok(consulta);
     }
