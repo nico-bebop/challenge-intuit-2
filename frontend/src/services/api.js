@@ -1,31 +1,49 @@
 import axios from 'axios'
 
-const BASE_URL = 'http://localhost:5000'
+const http = axios.create({ baseURL: 'http://localhost:5000' })
 
-export const mensajeError = (e) => e?.response?.data?.mensaje || "Error al procesar la solicitud"
+export const notificar = (mensaje) => alert(mensaje)
+
+// Interceptor global: cualquier error HTTP se informa de forma uniforme, sin tener que
+// invocarlo en cada catch. Distingue sin conexión / validación o regla de negocio / error del servidor.
+http.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error.response?.status
+    let mensaje
+    if (!error.response) mensaje = 'No se pudo conectar con el servidor. Verificá que el backend esté levantado.'
+    else if (status >= 500) mensaje = 'Error del servidor. Intentá nuevamente en unos instantes.'
+    else mensaje = error.response.data?.mensaje || 'La solicitud no pudo procesarse.'
+
+    error.mensaje = mensaje
+    error.tipo = !error.response ? 'red' : status >= 500 ? 'servidor' : 'negocio'
+    notificar(mensaje)
+    return Promise.reject(error)
+  }
+)
 
 export const consultasApi = {
-  getAll:             ()          => axios.get(`${BASE_URL}/consultas`),
-  getById:            (id)        => axios.get(`${BASE_URL}/consultas/${id}`),
-  create:             (data)      => axios.post(`${BASE_URL}/consultas`, data),
-  cancelar:           (id)        => axios.post(`${BASE_URL}/consultas/${id}/cancelar`),
-  marcarInasistencia: (id)        => axios.post(`${BASE_URL}/consultas/${id}/inasistencia`),
-  registrarAtencion:  (id)        => axios.post(`${BASE_URL}/consultas/${id}/atencion`),
-  actualizarEstado:   (id, data)  => axios.put(`${BASE_URL}/consultas/${id}/estado`, data)
+  getAll:             ()          => http.get('/consultas'),
+  getById:            (id)        => http.get(`/consultas/${id}`),
+  create:             (data)      => http.post('/consultas', data),
+  cancelar:           (id)        => http.post(`/consultas/${id}/cancelar`),
+  marcarInasistencia: (id)        => http.post(`/consultas/${id}/inasistencia`),
+  registrarAtencion:  (id)        => http.post(`/consultas/${id}/atencion`),
+  actualizarEstado:   (id, data)  => http.put(`/consultas/${id}/estado`, data)
 }
 
 export const afiliadosApi = {
-  getAll:  ()          => axios.get(`${BASE_URL}/afiliados`),
-  getById: (id)        => axios.get(`${BASE_URL}/afiliados/${id}`),
-  create:  (data)      => axios.post(`${BASE_URL}/afiliados`, data),
-  update:  (id, data)  => axios.put(`${BASE_URL}/afiliados/${id}`, data),
-  delete:  (id)        => axios.delete(`${BASE_URL}/afiliados/${id}`)
+  getAll:  ()          => http.get('/afiliados'),
+  getById: (id)        => http.get(`/afiliados/${id}`),
+  create:  (data)      => http.post('/afiliados', data),
+  update:  (id, data)  => http.put(`/afiliados/${id}`, data),
+  delete:  (id)        => http.delete(`/afiliados/${id}`)
 }
 
 export const profesionalesApi = {
-  getAll: () => axios.get(`${BASE_URL}/profesionales`)
+  getAll: () => http.get('/profesionales')
 }
 
 export const sedesApi = {
-  getAll: () => axios.get(`${BASE_URL}/sedes`)
+  getAll: () => http.get('/sedes')
 }

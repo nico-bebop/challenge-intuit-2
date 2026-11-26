@@ -4,7 +4,7 @@
     <form @submit.prevent="guardar">
       <div class="form-group">
         <label>Afiliado</label>
-        <select v-model="form.afiliadoId">
+        <select v-model="form.afiliadoId" required>
           <option value="">Seleccioná un afiliado</option>
           <option v-for="a in afiliados" :key="a.id" :value="a.id">
             {{ a.nombreCompleto }} — DNI {{ a.dni }}
@@ -13,7 +13,7 @@
       </div>
       <div class="form-group">
         <label>Profesional</label>
-        <select v-model="form.profesionalId">
+        <select v-model="form.profesionalId" required>
           <option value="">Seleccioná un profesional</option>
           <option v-for="p in profesionales" :key="p.id" :value="p.id">
             {{ p.nombreCompleto }} — {{ p.especialidad }}
@@ -29,7 +29,7 @@
       </div>
       <div class="form-group">
         <label>Fecha y hora</label>
-        <input type="datetime-local" v-model="form.fechaHora" />
+        <input type="datetime-local" v-model="form.fechaHora" :min="minFecha" required />
       </div>
       <div class="form-group">
         <label>Motivo</label>
@@ -41,7 +41,7 @@
 </template>
 
 <script>
-import { consultasApi, afiliadosApi, profesionalesApi, mensajeError } from '../services/api'
+import { consultasApi, afiliadosApi, profesionalesApi, notificar } from '../services/api'
 
 export default {
   name: 'ConsultaNueva',
@@ -58,17 +58,28 @@ export default {
       profesionales: []
     }
   },
+  computed: {
+    // Fecha mínima en hora local (formato datetime-local: yyyy-MM-ddTHH:mm)
+    minFecha() {
+      const d = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+      return d.toISOString().slice(0, 16)
+    }
+  },
   async mounted() {
     try {
       const [aRes, pRes] = await Promise.all([afiliadosApi.getAll(), profesionalesApi.getAll()])
       this.afiliados = aRes.data
       this.profesionales = pRes.data
-    } catch (e) {
-      alert(mensajeError(e))
+    } catch {
+      // El interceptor de axios ya informó el error
     }
   },
   methods: {
     async guardar() {
+      if (!this.form.fechaHora || new Date(this.form.fechaHora) <= new Date()) {
+        notificar("La fecha y hora de la consulta debe ser futura.")
+        return
+      }
       try {
         await consultasApi.create({
           afiliadoId: Number(this.form.afiliadoId),
@@ -78,8 +89,8 @@ export default {
           motivo: this.form.motivo
         })
         this.$router.push('/consultas')
-      } catch (e) {
-        alert(mensajeError(e))
+      } catch {
+        // El interceptor de axios ya informó el error
       }
     }
   }

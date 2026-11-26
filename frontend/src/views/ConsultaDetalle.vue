@@ -33,7 +33,7 @@
 </template>
 
 <script>
-import { consultasApi, mensajeError } from '../services/api'
+import { consultasApi } from '../services/api'
 
 export default {
   name: 'ConsultaDetalle',
@@ -49,8 +49,8 @@ export default {
       const res = await consultasApi.getById(this.$route.params.id)
       this.consulta = res.data
       this.nuevoEstado = this.consulta.estado
-    } catch (e) {
-      alert(mensajeError(e))
+    } catch {
+      // El interceptor de axios ya informó el error
     }
   },
   methods: {
@@ -61,8 +61,8 @@ export default {
       try {
         const res = await consultasApi.actualizarEstado(this.consulta.id, { estado: this.nuevoEstado })
         this.consulta = res.data
-      } catch (e) {
-        alert(mensajeError(e))
+      } catch {
+        // El interceptor de axios ya informó el error
       }
     },
     async registrarAtencion() {
@@ -70,8 +70,8 @@ export default {
         const res = await consultasApi.registrarAtencion(this.consulta.id)
         this.consulta = res.data
         this.nuevoEstado = this.consulta.estado
-      } catch (e) {
-        alert(mensajeError(e))
+      } catch {
+        // El interceptor de axios ya informó el error
       }
     },
     async accion(fn) {
@@ -79,8 +79,8 @@ export default {
         const res = await fn(this.consulta.id)
         this.consulta = { ...this.consulta, estado: res.data.estado }
         this.nuevoEstado = this.consulta.estado
-      } catch (e) {
-        alert(mensajeError(e))
+      } catch {
+        // El interceptor de axios ya informó el error
       }
     },
     cancelar() { return this.accion(consultasApi.cancelar) },
