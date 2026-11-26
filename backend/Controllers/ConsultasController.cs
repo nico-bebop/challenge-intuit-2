@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ConsultasPlan.Data;
+using ConsultasPlan.Dtos;
 using ConsultasPlan.Models;
 
 namespace ConsultasPlan.Controllers;
@@ -38,28 +39,42 @@ public class ConsultasController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> CrearConsulta([FromBody] Consulta consulta)
+    public async Task<IActionResult> CrearConsulta([FromBody] CrearConsultaRequest request)
     {
-        var afiliado = await _context.Afiliados.FindAsync(consulta.AfiliadoId);
-        if (afiliado == null)
+        var afiliado = request.AfiliadoId == null ? null : await _context.Afiliados.FindAsync(request.AfiliadoId);
+        if (afiliado == null || !afiliado.isActive)
             return NotFound(new { mensaje = "Afiliado no encontrado." });
 
         if (afiliado.Bloqueado)
             return BadRequest(new { mensaje = "El afiliado se encuentra bloqueado para agendar consultas." });
 
-        var profesionalExiste = await _context.Profesionales.AnyAsync(p => p.Id == consulta.ProfesionalId);
+        if (request.FechaHora <= DateTime.Now)
+            return BadRequest(new { mensaje = "La fecha de la consulta debe ser futura." });
+
+        if (!Enum.IsDefined(request.Modalidad))
+            return BadRequest(new { mensaje = "Modalidad inválida." });
+
+        var profesionalExiste = await _context.Profesionales.AnyAsync(p => p.Id == request.ProfesionalId);
         if (!profesionalExiste)
             return NotFound(new { mensaje = "Profesional no encontrado." });
 
         var consultaConflicto = await _context.Consultas.AnyAsync(c =>
-            c.ProfesionalId == consulta.ProfesionalId &&
-            c.FechaHora == consulta.FechaHora &&
+            c.ProfesionalId == request.ProfesionalId &&
+            c.FechaHora == request.FechaHora &&
             c.Estado != EstadoConsulta.Cancelado);
         if (consultaConflicto)
             return BadRequest(new { mensaje = "El profesional ya tiene una consulta en ese horario." });
 
-        consulta.FechaCreacion = DateTime.UtcNow;
-        consulta.Estado = EstadoConsulta.Pendiente;
+        var consulta = new Consulta
+        {
+            AfiliadoId = afiliado.Id,
+            ProfesionalId = request.ProfesionalId,
+            FechaHora = request.FechaHora,
+            Modalidad = request.Modalidad,
+            Motivo = request.Motivo?.Trim() ?? string.Empty,
+            FechaCreacion = DateTime.Now,
+            Estado = EstadoConsulta.Pendiente
+        };
         _context.Consultas.Add(consulta);
         await _context.SaveChangesAsync();
         return CreatedAtAction(nameof(GetById), new { id = consulta.Id }, consulta);
