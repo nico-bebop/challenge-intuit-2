@@ -39,7 +39,7 @@
 </template>
 
 <script>
-import { afiliadosApi, mensajeError } from '../services/api'
+import { afiliadosApi } from '../services/api'
 
 export default {
   name: 'AfiliadosList',
@@ -52,8 +52,8 @@ export default {
     try {
       const res = await afiliadosApi.getAll()
       this.afiliados = res.data
-    } catch (e) {
-      alert(mensajeError(e))
+    } catch {
+      // El interceptor de axios ya informó el error
     }
   },
   methods: {
@@ -62,8 +62,8 @@ export default {
       try {
         await afiliadosApi.delete(id)
         this.afiliados = this.afiliados.filter(a => a.id !== id)
-      } catch (e) {
-        alert(mensajeError(e))
+      } catch {
+        // El interceptor de axios ya informó el error
       }
     }
   }

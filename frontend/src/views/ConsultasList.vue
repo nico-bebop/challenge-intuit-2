@@ -39,7 +39,7 @@
 </template>
 
 <script>
-import { consultasApi, mensajeError } from '../services/api'
+import { consultasApi } from '../services/api'
 
 export default {
   name: 'ConsultasList',
@@ -52,8 +52,8 @@ export default {
     try {
       const res = await consultasApi.getAll()
       this.consultas = res.data
-    } catch (e) {
-      alert(mensajeError(e))
+    } catch {
+      // El interceptor de axios ya informó el error
     }
   },
   methods: {
@@ -65,8 +65,8 @@ export default {
         const res = await consultasApi.cancelar(id)
         const i = this.consultas.findIndex(c => c.id === id)
         if (i >= 0) this.consultas[i] = { ...this.consultas[i], estado: res.data.estado }
-      } catch (e) {
-        alert(mensajeError(e))
+      } catch {
+        // El interceptor de axios ya informó el error
       }
     }
   }
